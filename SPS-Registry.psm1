@@ -55,9 +55,13 @@ Class SPSRegistryValue {
         Return $Output
     }
     # Static methods
-    Static [SPSRegistryValue] FromItem($Path,$Value){
+    Static [SPSRegistryValue] FromItem($Item,$Value){
         $RegistryValue = [SPSRegistryValue]::New()
-        
+        $RegistryValue.Name = $Value
+        $RegistryValue.Value = Get-ItemProperty -Path $Item.PSPath -Name $Value | Select-Object -ExpandProperty $Value
+        $RegistryValue.ParentKey = $Item.Name
+        $RegistryValue.ParentHive = split-Path -Path $Item.Name
+        $RegistryValue.__GetRegHive()
         Return $RegistryValue
     }
 }
@@ -191,14 +195,22 @@ $($Value.ToString())
 
     }
     # Static methods
-    Static [SPSRegistryKey] FromItem($Path){
+    Static [SPSRegistryKey] FromItem($Item){
         $RegistryKey = [SPSRegistryKey]::New()
-
+        $RegistryKey.Key = $Item.Name
+        $RegistryKey.Hive = split-Path -Path $Item.Name
+        $RegistryKey.KeyPath = "\$($Item.PSChildName)"
+        $RegistryKey.__GetRegHive()
+        if ($Item.ValueCount -gt 0) {
+            ForEach ($Value in $Item.GetValueNames()) {
+                $RegistryKey.Values.Add([SPSRegistryValue]::FromItem($Item,$Value))
+            }
+        }
         Return $RegistryKey
     }
-    Static [SPSRegistryKey] FromItem($Path,$Value){
+    Static [SPSRegistryKey] FromItem($Item,$Value){
         $RegistryKey = [SPSRegistryKey]::New()
-        $RegistryKey.Values.Add([SPSRegistryValue]::FromItem($Path,$Value))
+        $RegistryKey.Values.Add([SPSRegistryValue]::FromItem($Item,$Value))
         Return $RegistryKey
     }
 }
@@ -343,14 +355,14 @@ $($Key.ToString())
 
     }
     # Static methods
-    Static [SPSRegistry] FromItem($Path){
+    Static [SPSRegistry] FromItem($Item){
         $Reg = [SPSRegistry]::New()
-        $reg.Keys.Add([SPSRegistryKey]::FromItem($Path))
+        $reg.Keys.Add([SPSRegistryKey]::FromItem($Item))
         Return $Reg
     }
-    Static [SPSRegistry] FromItem($Path,$Value){
+    Static [SPSRegistry] FromItem($Item,$Value){
         $Reg = [SPSRegistry]::New()
-        $reg.Keys.Add([SPSRegistryKey]::FromItem($Path,$Value))
+        $reg.Keys.Add([SPSRegistryKey]::FromItem($Item,$Value))
         Return $Reg
     }
 
