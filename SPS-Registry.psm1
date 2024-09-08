@@ -1,8 +1,8 @@
-Enum RegistryVersion {
+Enum SPSRegistryVersion {
     V4 = 4
     V5 = 5
 }
-Enum RegistryHive {
+Enum SPSRegistryHive {
     HKEY_CLASSES_ROOT
     HKEY_CURRENT_USER
     HKEY_LOCAL_MACHINE
@@ -12,22 +12,24 @@ Enum RegistryHive {
     HKEY_DYN_DATA
 }
 # MARK: RegistryValue Class
-Class RegistryValue {
+Class SPSRegistryValue {
     [System.Collections.Generic.List[System.IO.FileInfo]]   ${File} = [System.Collections.Generic.List[System.IO.FileInfo]]::New()
-    [String]                                                ${ParentHive} = ''
+    hidden [String]                                         ${ParentHive} = ''
+    [SPSRegistryHive]                                       ${RegHive}
     [String]                                                ${ParentKey} = ''
     [String]                                                ${Name} = ''
     [String]                                                ${Value} = ''
     [Boolean]                                               ${Delete} = $False
-    RegistryValue(){}
-    RegistryValue([RegistryValue] $Value){
+    SPSRegistryValue(){}
+    SPSRegistryValue([SPSRegistryValue] $Value){
         $this.ParentHive = $Value.ParentHive
         $this.ParentKey = $Value.ParentKey
         $this.Name = $Value.Name
         $this.Delete = $Value.Delete
         $this.Value = $Value.Value
+        $This.__GetRegHive()
     }
-    RegistryValue([System.IO.FileInfo[]] $File, [String]$ParentKey,[String]$ParentHive,[String]$Name,[String]$Value) {
+    SPSRegistryValue([System.IO.FileInfo[]] $File, [String]$ParentKey,[String]$ParentHive,[String]$Name,[String]$Value) {
         if ($Value -eq '-'){
             $this.Value = $Value.Trim()
             $this.Delete = $True
@@ -38,6 +40,11 @@ Class RegistryValue {
         $this.ParentKey = $ParentKey
         $this.ParentHive = $ParentHive
         $this.Name = $Name
+        $This.__GetRegHive()
+    }
+    hidden [void] __GetRegHive() {
+        $RegHiveString = $This.ParentHive -split '\\' | Select-Object -First 1
+        $this.RegHive = [SPSRegistryHive]::GetNames([SPSRegistryHive]) | Where-Object {$_ -eq $RegHiveString}
     }
     [String] ToString() {
         if ($This.Name -eq '@') {
@@ -48,37 +55,41 @@ Class RegistryValue {
         Return $Output
     }
     # Static methods
-    Static [RegistryValue] FromItem($Path,$Value){
-        $RegistryValue = [RegistryValue]::New()
-
+    Static [SPSRegistryValue] FromItem($Path,$Value){
+        $RegistryValue = [SPSRegistryValue]::New()
+        
         Return $RegistryValue
     }
 }
 # MARK: RegistryKey Class
-Class RegistryKey {
+Class SPSRegistryKey {
     [System.Collections.Generic.List[System.IO.FileInfo]]   ${File} = [System.Collections.Generic.List[System.IO.FileInfo]]::New()
     [String]                                                ${Key} = ''
-    [String]                                                ${Hive} = ''
+    Hidden [String]                                         ${Hive} = ''
+    [SPSRegistryHive]                                       ${RegHive}     
     [String]                                                ${KeyPath} = ''
-    [System.Collections.Generic.List[RegistryValue]]        ${Values} = [System.Collections.Generic.List[RegistryValue]]::New()
+    [System.Collections.Generic.List[SPSRegistryValue]]     ${Values} = [System.Collections.Generic.List[SPSRegistryValue]]::New()
     [System.Collections.Generic.List[String]]               ${Comments} = [System.Collections.Generic.List[String]]::New()
     [System.Collections.Generic.List[String]]               ${UnknowLines} = [System.Collections.Generic.List[String]]::New()
     [Boolean]                                               ${Delete} = $False
     Hidden [String]                                         ${__content} = ''
-    RegistryKey(){}
-    RegistryKey([RegistryKey] $RegKey) {
+    SPSRegistryKey(){}
+    SPSRegistryKey([SPSRegistryKey] $RegKey) {
         $This.Key = $RegKey.Key
         $this.hive = $RegKey.Hive
         $this.KeyPath = $RegKey.KeyPath
+        $This.__GetRegHive()
     }
-    RegistryKey([System.IO.FileInfo[]] $File, [String] $Key, [String] $Hive,[String] $KeyPath,[String] $Content,[Boolean] $IsDeletion) {
+    SPSRegistryKey([System.IO.FileInfo[]] $File, [String] $Key, [String] $Hive,[String] $KeyPath,[String] $Content,[Boolean] $IsDeletion) {
         $This.File = $File
         $This.Hive = $Hive
         $This.Key = $Key
         $This.KeyPath = $KeyPath
         $This.__content = $Content
         $This.Delete = $IsDeletion
+        $This.__GetRegHive()
         $This.__convertContent()
+
     }
     hidden [Void] __convertContent() {
         [Regex] $RegexValueKeyPair = '[\t ]*("(?<Name>.+)"|(?<Default>@))[\t ]*=[\t ]*(?<Value>"(?:[^"\\]|\\.)*"|[^"]+)'
@@ -113,7 +124,7 @@ Class RegistryKey {
                                 } else {
                                     # Reached the end of hex value
                                     $isHexValue = $false
-                                    $ValueKeyPair = [RegistryValue]::New($This.File, $This.Key, $This.Hive, $Name, $NewValueList -join "`r`n")
+                                    $ValueKeyPair = [SPSRegistryValue]::New($This.File, $This.Key, $This.Hive, $Name, $NewValueList -join "`r`n")
                                     $This.Values.Add($ValueKeyPair)
                                     $i-- # Revisit the current line in the next iteration
                                 }
@@ -131,32 +142,36 @@ Class RegistryKey {
                             }
                             if ($i -eq ($ValueList.Count - 1)) {
                                 # Reached the end of the value
-                                $ValueKeyPair = [RegistryValue]::New($This.File, $This.Key, $This.Hive, $Name, $NewValueList -join "`r`n")
+                                $ValueKeyPair = [SPSRegistryValue]::New($This.File, $This.Key, $This.Hive, $Name, $NewValueList -join "`r`n")
                                 $This.Values.Add($ValueKeyPair)
                             }
                         }
                     }ElseIf($Value -match $DwordValue) {
                         # a DWORD Value cannot be multiline...
                         $GoodValue = $ValueList[0]
-                        $ValueKeyPair = [RegistryValue]::New($This.File,$This.Key,$This.Hive,$Name,$GoodValue)
+                        $ValueKeyPair = [SPSRegistryValue]::New($This.File,$This.Key,$This.Hive,$Name,$GoodValue)
                         $This.Values.Add($ValueKeyPair)
                         $BadLines = $ValueList | Where-Object {$_ -notlike $GoodValue} | Where-Object {$_.trim()} | Where-Object {$_ -notmatch $CommentRegex}
                         $BadLines | ForEach-Object {$this.UnknowLines.Add($_) | out-null}
                     }Else{
                         # Unhandled for now
                         Write-Warning 'A multiline with a unknown format'
-                        $ValueKeyPair = [RegistryValue]::New($This.File,$This.Key,$This.Hive,$Name,$Value)
+                        $ValueKeyPair = [SPSRegistryValue]::New($This.File,$This.Key,$This.Hive,$Name,$Value)
                         $This.Values.Add($ValueKeyPair)
                     }
                     
                 }Else{
                     if (($Name -notlike '') -and ($Value -notlike '')){
-                        $ValueKeyPair = [RegistryValue]::New($This.File,$This.Key,$This.Hive,$Name,$Value)
+                        $ValueKeyPair = [SPSRegistryValue]::New($This.File,$This.Key,$This.Hive,$Name,$Value)
                         $This.Values.Add($ValueKeyPair)
                     }
                 }                
             }
         }
+    }
+    hidden [void] __GetRegHive() {
+        $RegHiveString = $This.Hive -split '\\' | Select-Object -First 1
+        $this.RegHive = [SPSRegistryHive]::GetNames([SPSRegistryHive]) | Where-Object {$_ -eq $RegHiveString}
     }
     [string] ToString() {
         $Output = $This.Key
@@ -172,29 +187,37 @@ $($Value.ToString())
         }
         Return $Output
     }
-    # Static methods
-    Static [RegistryKey] FromItem($Path){
-        $RegistryKey = [RegistryKey]::New()
+    [void] Save() {
 
+    }
+    # Static methods
+    Static [SPSRegistryKey] FromItem($Path){
+        $RegistryKey = [SPSRegistryKey]::New()
+
+        Return $RegistryKey
+    }
+    Static [SPSRegistryKey] FromItem($Path,$Value){
+        $RegistryKey = [SPSRegistryKey]::New()
+        $RegistryKey.Values.Add([SPSRegistryValue]::FromItem($Path,$Value))
         Return $RegistryKey
     }
 }
 # MARK: Registry Class
-Class Registry {
+Class SPSRegistry {
     [System.Collections.Generic.List[System.IO.FileInfo]]   ${File} = [System.Collections.Generic.List[System.IO.FileInfo]]::New()
     [System.Text.Encoding]                                  ${Encoding} = [System.Text.Encoding]::Default
-    [RegistryVersion]                                       ${Version} = [RegistryVersion]::V5
-    [System.Collections.Generic.List[RegistryKey]]          ${Keys} = [System.Collections.Generic.List[RegistryKey]]::New()
+    [SPSRegistryVersion]                                    ${Version} = [SPSRegistryVersion]::V5
+    [System.Collections.Generic.List[SPSRegistryKey]]       ${Keys} = [System.Collections.Generic.List[SPSRegistryKey]]::New()
     [System.Collections.Generic.List[String]]               ${Comments} = [System.Collections.Generic.List[String]]::New()
     [System.Collections.Generic.List[String]]               ${UnknownLines} = [System.Collections.Generic.List[String]]::New()
     Hidden [String]                                         ${__rawContent} = ''
     Hidden [String]                                         ${__content} = ''
     Hidden [System.Collections.Generic.List[String]]        ${__lines} = [System.Collections.Generic.List[String]]::New()
-    Registry(){}
-    Registry([System.IO.FileInfo] $File) { # Create a Registry object from a file
+    SPSRegistry(){}
+    SPSRegistry([System.IO.FileInfo] $File) { # Create a Registry object from a file
         $this.__BuildObject($File, $False)
     }
-    Registry([System.IO.FileInfo] $File, [Boolean] $Strict) { # Create a Registry object from a file
+    SPSRegistry([System.IO.FileInfo] $File, [Boolean] $Strict) { # Create a Registry object from a file
         $this.__BuildObject($File, $Strict)
     }
     hidden [void] __BuildObject([System.IO.FileInfo] $File, [Boolean] $Strict) {
@@ -208,7 +231,7 @@ Class Registry {
         ForEach ($EncodingType in $EncodingList) {
             $This.__rawContent = Get-Content -Path $File -Raw -Encoding $EncodingType -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
             if (($This.__rawContent -Match $Registry4Regex) -or ($This.__rawContent -match $Registry5Regex)) {
-                if ($This.__rawContent -match $Registry4Regex) {$This.Version = [RegistryVersion]::V4}
+                if ($This.__rawContent -match $Registry4Regex) {$This.Version = [SPSRegistryVersion]::V4}
                 # This encoding match do not search for an another one
                 # Write-Verbose "Encoding for file is [$($EncodingType)]"
                 $FoundEncoding = $True
@@ -246,7 +269,7 @@ Class Registry {
         }
     }
     hidden [Void] __convertContent(){
-        $HivePattern = [RegistryHive]::GetNames([RegistryHive]) -join '|'
+        $HivePattern = [SPSRegistryHive]::GetNames([SPSRegistryHive]) -join '|'
         # [Regex] $RegexKey = "(?<FullKey>([\t ]*\[(?<KeyDeletion>-)?(?<Key>(?<Hive>$($HivePattern))(?<KeyPath>.*))\]))"
         # [Regex] $KeyLike = "(?<FullKey>([\t ]*\[(?<KeyDeletion>-)?(?<Key>(?<Hive>.*)(?<KeyPath>\\.*))\]))" # To handle malformated keys
         [Regex] $RegexKey = "(\n|^)(?<FullKey>([\t ]*\[(?<KeyDeletion>-)?(?<Key>(?<Hive>$($HivePattern))(?<KeyPath>.*))\]))"
@@ -282,7 +305,7 @@ Class Registry {
                     $KeyPath = $Groups | Where-Object {$_.Name -eq 'KeyPath'} | Select-Object -ExpandProperty 'Value'
                     $RegKey = $Groups | Where-Object {$_.Name -eq 'Key'} | Select-Object -ExpandProperty 'Value'
                     $KeyDeletion = ($Groups | Where-Object {$_.Name -eq 'KeyDeletion'} | Select-Object -ExpandProperty 'Value') -eq '-'
-                    $Key = [RegistryKey]::New($this.File,$RegKey,$Hive,$KeyPath,$ValuesContent,$KeyDeletion)
+                    $Key = [SPSRegistryKey]::New($this.File,$RegKey,$Hive,$KeyPath,$ValuesContent,$KeyDeletion)
                     $This.Keys.Add($Key)
                 }Else{
                     # A Malformated key has been found store what 'Seems' to be part of it as remaining content
@@ -299,7 +322,7 @@ Class Registry {
     }
     [String] ToString() {
         $Title = ''
-        if ($This.Version -eq [RegistryVersion]::V4) {
+        if ($This.Version -eq [SPSRegistryVersion]::V4) {
             $Title = 'REGEDIT4'
         }Else{
             $Title = 'Windows Registry Editor Version 5.00'
@@ -316,17 +339,21 @@ $($Key.ToString())
         }
         Return $Output
     }
+    [Void] Save() {
+
+    }
     # Static methods
-    Static [Registry] FromItem($Path){
-        $Reg = [Registry]::New()
-
+    Static [SPSRegistry] FromItem($Path){
+        $Reg = [SPSRegistry]::New()
+        $reg.Keys.Add([SPSRegistryKey]::FromItem($Path))
         Return $Reg
     }
-    Static [Registry] FromItem($Path,$Key){
-        $Reg = [Registry]::New()
-
+    Static [SPSRegistry] FromItem($Path,$Value){
+        $Reg = [SPSRegistry]::New()
+        $reg.Keys.Add([SPSRegistryKey]::FromItem($Path,$Value))
         Return $Reg
     }
+
 }
 # MARK: Get-SPSRegistryContent
 Function Get-SPSRegistry {
@@ -365,7 +392,7 @@ Function Get-SPSRegistry {
             ParameterSetName = 'ByFile'
         )]
         [Alias('FullName')]
-        [ValidateScript({(($_ | ForEach-Object{Test-Path -Path $_ -PathType Leaf}) -notcontains $False) -and (($_ | ForEach-Object {(Get-Item -Path $_ | Select-Object -ExpandProperty Provider) -eq 'FileSystem'}) -notcontains $False)},ErrorMessage="The input(s) should be existing file")]
+        [ValidateScript({(($_ | ForEach-Object{Test-Path -Path $_ -PathType Leaf}) -notcontains $False) -and (($_ | ForEach-Object {(Get-Item -Path $_ | Select-Object -ExpandProperty 'PSProvider' | Select-Object -ExpandProperty 'Name') -eq 'FileSystem'}) -notcontains $False)},ErrorMessage="The input(s) should be existing file")]
         [System.IO.FileInfo[]] $File,
         [Parameter(
             Position = 2,
@@ -383,8 +410,15 @@ Function Get-SPSRegistry {
             HelpMessage = 'The path to the registry to read',
             ParameterSetName = 'ByItem'
         )]
-        [ValidateScript({(($_ | ForEach-Object {(Get-Item -Path $_ | Select-Object -ExpandProperty Provider) -eq 'Registry'}) -notcontains $False)},ErrorMessage="The input(s) should be registry object")]
-        [String[]] ${RegPath}
+        [ValidateScript({(($_ | ForEach-Object {(Get-Item -Path $_ | Select-Object -ExpandProperty 'PSProvider' | Select-Object -ExpandProperty 'Name') -eq 'Registry'}) -notcontains $False)},ErrorMessage="The input(s) should be registry object")]
+        [String[]] ${RegPath},
+        [Parameter(
+            Position = 2,
+            Mandatory = $False,
+            HelpMessage = 'The name of the registry item to read',
+            ParameterSetName = 'ByItem'
+        )]
+        [String] ${RegName}
     )
     BEGIN {
         #region Function initialisation DO NOT REMOVE
@@ -398,13 +432,14 @@ Function Get-SPSRegistry {
         if ($PSCmdlet.ParameterSetName -eq 'ByItem') {
             # Handle the registry item
             ForEach($Item in $RegPath) {
-
+                # ensure the item is a registry item (if input is a )
+                $Item = Get-Item $Item
             }
         }Elseif ($PSCmdlet.ParameterSetName -eq 'ByFile') {
             # Handle the reg file
             ForEach($SingleFile in $File){
                 try {
-                    [Registry]::New($SingleFile,$Strict)
+                    [SPSRegistry]::New($SingleFile,$Strict)
                 } catch [System.IO.FileFormatException] {
                     Write-Warning "$($_.Exception.Message) file will be ignored."
                 } catch [System.FormatException] {
@@ -481,7 +516,7 @@ Function Merge-SPSRegistry {
             ParameterSetName = 'byRegistry',
             HelpMessage = 'The registry object to merge.'
         )]
-        [Registry[]] $InputObject,
+        [SPSRegistry[]] $InputObject,
         [Parameter(
             Position = 1,
             Mandatory = $True,
@@ -569,9 +604,9 @@ Function Merge-SPSRegistry {
         # Create the output object to store the merged registry
         $OutputRegistry = [Registry]::New()
         if ($OutputFormat -eq 4) {
-            $OutputRegistry.Version = [RegistryVersion]::V4
+            $OutputRegistry.Version = [SPSRegistryVersion]::V4
         }Else{
-            $OutputRegistry.Version = [RegistryVersion]::V5
+            $OutputRegistry.Version = [SPSRegistryVersion]::V5
         }
         $OutputRegistry.File = $InputObject.File | Select-Object -Unique
         $OutputRegistry.Comments = $InputObject.Comments
@@ -585,7 +620,7 @@ Function Merge-SPSRegistry {
         # Handle the grouped keys
         ForEach ($Key in $GroupedKeys) {
             $KeyGroup = $Key.Group
-            $KeyObject = [RegistryKey]::New()
+            $KeyObject = [SPSRegistryKey]::New()
             $KeyObject.File = $KeyGroup.File | Select-Object -Unique
             $KeyObject.Key = $KeyGroup[0].Key
             $KeyObject.Hive = $KeyGroup[0].Hive
@@ -620,7 +655,7 @@ Function Merge-SPSRegistry {
             }
             ForEach ($RegValue in $GroupedValues) {
                 $RegValueGroup = $RegValue.Group
-                $ValueObject = [RegistryValue]::New()
+                $ValueObject = [SPSRegistryValue]::New()
                 $ValueObject.File = $RegValueGroup.File | Select-Object -Unique
                 $ValueObject.Name = $RegValueGroup[0].Name
                 $ValueObject.ParentHive = $RegValueGroup[0].ParentHive
@@ -693,7 +728,7 @@ Function Merge-SPSRegistry {
     }
 }
 #region Expose the types and enums to the session as type accelerators. (thanks to Gael Colas for the heads up on this approach)
-$ExportableTypes =@([Registry],[RegistryHive],[RegistryKey],[RegistryValue],[RegistryVersion])
+$ExportableTypes =@([SPSRegistry],[SPSRegistryHive],[SPSRegistryKey],[SPSRegistryValue],[SPSRegistryVersion])
 # Get the internal TypeAccelerators class to use its static methods.
 $TypeAcceleratorsClass = [PSObject].Assembly.GetType('System.Management.Automation.TypeAccelerators')
 # Ensure none of the types would clobber an existing type accelerator.
