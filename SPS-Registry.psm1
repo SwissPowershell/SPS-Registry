@@ -148,8 +148,7 @@ Class SPSRegistryKey {
                         $BadLines = $ValueList | Where-Object {$_ -notlike $GoodValue} | Where-Object {$_.trim()} | Where-Object {$_ -notmatch $CommentRegex}
                         $BadLines | ForEach-Object {$this.UnknowLines.Add($_) | out-null}
                     }Else{
-                        # Unhandled for now
-                        Write-Warning "A multiline with a unknown format for '$($Name)' under [$($This.Key)]key has been found."
+                        # Probably a Json stored => Save it as is
                         $ValueKeyPair = [SPSRegistryValue]::New($This.File,$This.Key,$This.Hive,$Name,$Value)
                         $This.Values.Add($ValueKeyPair)
                     }
