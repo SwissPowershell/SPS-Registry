@@ -1,19 +1,19 @@
 
-## Get-SPSRegistryContent
+## Get-SPSRegistry
 ### Syntax
 ```powershell
-Get-SPSRegistryContent
+Get-SPSRegistry
     -File <System.IO.FileInfo>
     [-Strict]
     [<CommonParameters>]
 ```
 ### Description
-the `Get-SPSRegistryContent` cmdlets get the content of the item at the location specified by the file parameter. If the file comply with the registry format it will be converted to a `Registry` object.
+the `Get-SPSRegistry` cmdlets get the content of the item at the location specified by the file parameter. If the file comply with the registry format it will be converted to a `Registry` object.
 
 ### Examples
 #### Example 1: Get registry content
 ```powershell
-Get-SPSRegistryContent -Path 'C:\Registry\File.reg'
+Get-SPSRegistry -Path 'C:\Registry\File.reg'
 ```
 
 This command retrieves the content of the registry file located at `C:\Registry\File.reg`.
@@ -50,10 +50,10 @@ This command retrieves the content of the registry file located at `C:\Registry\
 | Accept pipeline input: | false              |
 | <!-- -->               | <!-- -->           |
 
-## Merge-SPSRegistryContent
+## Merge-SPSRegistry
 ### Syntax
 ```powershell
-Merge-SPSRegistryContent
+Merge-SPSRegistry
     -InputObject <Registry>
     [-Strict]
     [-OutputPath <String>]
@@ -69,7 +69,7 @@ Merge-SPSRegistryContent
 ```
 
 ```powershell
-Merge-SPSRegistryContent
+Merge-SPSRegistry
     -Path <System.IO.FileInfo>
     [-Strict]
     [-OutputPath <String>]
@@ -84,13 +84,13 @@ Merge-SPSRegistryContent
     [<CommonParameters>]
 ```
 ### Description
-the `Merge-SPSRegistryContent` cmdlets will merge a set of `Registry` object or the content of a `path` into a single `registry` object.
+the `Merge-SPSRegistry` cmdlets will merge a set of `Registry` object or the content of a `path` into a single `registry` object.
 
 ### Examples
 
 ### Example 1: Merge registry content from a `System.IO.FileInfo` path
 ```powershell
-Merge-SPSRegistryContent -Path 'C:\Registry' -OutputPath 'C:\Merged\' -OutputFileName 'Merged.reg'
+Merge-SPSRegistry -Path 'C:\Registry' -OutputPath 'C:\Merged\' -OutputFileName 'Merged.reg'
 ```
 
 This command merges all registry file present in `C:\Registry` into a new registry file named `Merged.reg` and located at `C:\Merged\`.
@@ -98,7 +98,7 @@ This command merges all registry file present in `C:\Registry` into a new regist
 ### Example 2: Merge from `Registry` object
 ```powershell
 $Registries = Get-ChildItem 'C:\Registry' -file
-Merge-SPSRegistryContent -InputObject $Registries
+Merge-SPSRegistry -InputObject $Registries
 ```
 
 This command retrieve all registry file present in `C:\Registry` and convert them into 'Registry' Object. It then create a new registry file named `Merged.reg` and located at `C:\Merged\`.

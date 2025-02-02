@@ -52,11 +52,11 @@ To use this module, follow these steps:
     ````
 
 3. Use the available cmdlets to interact with registry files:
-    - `Get-SPSRegistryContent`: Convert a registry file into a Registry Object.
-    - `Merge-SPSRegistryContent`: Merges the content of multiple Registry files / Objects.
+    - `Get-SPSRegistry`: Convert a registry file into a Registry Object.
+    - `Merge-SPSRegistry`: Merges the content of multiple Registry files / Objects.
 
-4. This module also expose the [Registry] class:
-    - `[Registry]::New('PATH\RegistryFile.reg')`
+4. This module also expose the [SPSRegistry] [SPSRegistryKey] [SPSRegistryValue] class and [SPSRegistryHive] [SPSRegistryVersion] enum:
+    - `[SPSRegistry]::New('PATH\RegistryFile.reg')`
 
 ## Test the module
 
