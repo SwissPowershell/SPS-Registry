@@ -12,7 +12,7 @@ Powershell Module to help dealing with registry files
 > Never import a registry file without knowing it's content.
 
 > [!NOTE]  
-> Files under **\TestFiles\\** will only create key under [HKEY_CURRENT_USER\SOFTWARE\SPS-MergeRegistry].
+> Files under **\TestFiles\\** will only create key under [HKEY_CURRENT_USER\SOFTWARE\SPS-Registry].
 
 ## The story behind this project
 As a packager, I often receive many registry files from my beloved developers. During my CI/CD project, I had to pass these registry files into the WiX Packaging tool to generate the MSI file that I then use. There were several problems:
