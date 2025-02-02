@@ -1,0 +1,6 @@
+10/6 13:27:47.885  vendor: GenuineIntel
+10/6 13:27:47.885  branding: Intel(R) Core(TM) i9-14900HX
+10/6 13:27:47.885  features: lahf64 cmpxchg16b sse sse2 sse3 ssse3 sse41 sse42 avx avx2 aesni clmul sha rdrand 
+10/6 13:27:47.885  sockets: 1
+10/6 13:27:47.885  cores: 24
+10/6 13:27:47.885  threads: 32
