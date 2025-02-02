@@ -1,6 +1,9 @@
 # Project old versions
 1.*
 2.*
+*Debug*.*
+*Commit*.*
+ImportInModuleFolder.ps1
 
 # Windows image file caches
 Thumbs.db
